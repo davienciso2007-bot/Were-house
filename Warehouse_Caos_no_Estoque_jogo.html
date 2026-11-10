@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#111827">
+<title>Warehouse: Caos no Estoque</title>
+<style>
+:root{--bg:#101722;--panel:#1d2938;--line:#3c5065;--text:#f4f7fb;--muted:#b5c4d5;--gold:#ffd166;--green:#7bd88f;--red:#ff6b6b}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#23344a,#101722 65%);color:var(--text);font:15px system-ui, sans-serif;min-height:100vh}
+main{max-width:900px;margin:auto;padding:12px;display:grid;gap:10px}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+h1{font-size:clamp(20px,5vw,30px);margin:0;letter-spacing:.2px} .sub{color:var(--muted);font-size:12px}
+.pill{background:#26384c;border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:12px}
+.hud{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.stat{background:#1d2938;border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center}.stat b{display:block;font-size:18px}.stat span{color:var(--muted);font-size:11px}
+canvas{display:block;width:100%;height:auto;aspect-ratio:16/10;background:#182432;border:2px solid #51677b;border-radius:12px;image-rendering:pixelated;touch-action:none}
+.columns{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.panel{background:rgba(29,41,56,.95);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel h2{font-size:15px;margin:0 0 8px}.panel p{margin:4px 0;color:var(--muted);font-size:13px;line-height:1.4}
+.controls{display:grid;grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,42px);gap:5px;justify-content:center;align-items:center}
+button{font:inherit;color:var(--text);background:#30445a;border:1px solid #61778c;border-radius:9px;padding:9px 11px;cursor:pointer;touch-action:manipulation}
+button:active{transform:translateY(1px);background:#45617d} button.primary{background:#8b5cf6;border-color:#b9a0ff;font-weight:700}button:disabled{opacity:.45}
+.controls button{padding:0;font-size:20px;font-weight:800}.controls .empty{visibility:hidden}
+.actions{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-top:8px}
+#message{min-height:40px;color:#ffe6a6;font-size:13px}
+#overlay{position:fixed;inset:0;background:#09111ddd;display:flex;align-items:center;justify-content:center;padding:18px;z-index:5}
+.modal{max-width:480px;width:100%;background:#1d2938;border:1px solid #61778c;border-radius:16px;padding:20px;box-shadow:0 20px 70px #0009}
+.modal h2{margin:0 0 8px}.modal p,.modal li{color:#d1dbe7;font-size:14px;line-height:1.5}.modal ul{padding-left:20px}
+.small{font-size:11px;color:var(--muted);text-align:center}
+@media(max-width:560px){main{padding:8px}.columns{grid-template-columns:1fr}.hud{grid-template-columns:repeat(4,1fr)}.stat{padding:6px 2px}.stat b{font-size:16px}.panel{padding:10px}}
+</style>
+</head>
+<body>
+<main>
+<header><div><h1>📦 Warehouse: Caos no Estoque</h1><div class="sub">ROGUELIKE DE AÇÃO • PROTÓTIPO EDUCACIONAL</div></div><span class="pill">Fase <b id="level">1</b> · <span id="phase">Recebimento</span></span></header>
+<section class="hud">
+ <div class="stat"><b id="hp">❤️❤️❤️</b><span>Integridade</span></div>
+ <div class="stat"><b id="score">0</b><span>Pontos</span></div>
+ <div class="stat"><b id="stock">0/3</b><span>Itens coletados</span></div>
+ <div class="stat"><b id="timer">60s</b><span>Tempo</span></div>
+</section>
+<canvas id="game" width="640" height="400" aria-label="Área do jogo Warehouse"></canvas>
+<div class="columns">
+ <section class="panel">
+  <h2>🎮 Controles</h2>
+  <div class="controls">
+   <span class="empty"></span><button data-move="up" aria-label="Cima">▲</button><span class="empty"></span>
+   <button data-move="left" aria-label="Esquerda">◀</button><button data-move="down" aria-label="Baixo">▼</button><button data-move="right" aria-label="Direita">▶</button>
+  </div>
+  <div class="actions"><button id="attack" class="primary">⚡ Ação / golpe</button><button id="dash">💨 Esquiva</button><button id="restart">↻ Reiniciar</button></div>
+ </section>
+ <section class="panel">
+  <h2>📋 Ordem de serviço</h2>
+  <p id="objective">Colete 3 caixas e leve-as até a área de expedição verde.</p>
+  <p><b>Conceito de gestão:</b> <span id="concept">Recebimento e conferência</span></p>
+  <p id="message">Use as setas para se mover. Desvie das empilhadeiras!</p>
+ </section>
+</div>
+<div class="small">Protótipo v2 • Melhorias roguelike, esquiva e conceitos de logística • Sem cadastro</div>
+</main>
+<div id="overlay"><div class="modal"><h2>Warehouse: Caos no Estoque</h2><p>O armazém está um caos! Recolha as caixas corretas, evite empilhadeiras descontroladas e entregue os itens na expedição antes que o tempo acabe.</p><ul><li>Use as setas na tela ou as teclas WASD/setas.</li><li>Toque em <b>Ação / golpe</b> para atordoar perigos próximos.</li><li>Use <b>Esquiva</b> para escapar de colisões; há recarga.</li><li>Após cada operação, escolha uma melhoria para a próxima fase.</li><li>Cada fase aumenta o desafio e reforça um conceito de gestão.</li></ul><p><b>Objetivo educativo:</b> praticar recebimento, controle de estoque, separação e expedição de pedidos.</p><button id="start" class="primary" style="width:100%">Começar operação</button></div></div>
+<script>
+(() => {
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+ctx.imageSmoothingEnabled=false;
+const $=id=>document.getElementById(id);
+const tile=32, cols=20, rows=12;
+const phases=[
+ {name:'Recebimento',concept:'Conferência de entrada',hint:'Confira e colete 3 caixas recebidas.'},
+ {name:'Armazenagem',concept:'Organização e localização',hint:'Colete 4 caixas e entregue-as na área verde.'},
+ {name:'Expedição',concept:'Separação e baixa de estoque',hint:'Separe 5 caixas e conclua o pedido.'},
+ {name:'Inventário',concept:'Contagem e acuracidade',hint:'Conte os itens: colete 6 caixas sem perder toda a integridade.'}
+];
+let game, keys={}, last=0, frame=0, holdDir=null, holdTimer=null, started=false;
+function rand(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function reset(){
+ game={level:1,hp:3,maxHp:3,score:0,carried:0,goal:3,time:60,player:{x:2.5,y:2.5,cd:0,inv:0,speed:.18,stun:100},boxes:[],enemies:[],walls:[],exit:{x:17.5,y:9.5},over:false,won:false,spawn:0,upgradeUsed:false,bonus:0,timeBonus:0};
+ makeLevel();updateHUD();draw();
+}
+function makeLevel(){
+ const g=game;g.boxes=[];g.enemies=[];g.walls=[];
+ g.goal=Math.min(3+g.level-1,6);g.carried=0;g.time=Math.max(32,60-(g.level-1)*5)+(g.timeBonus||0);
+ g.player.x=2.5;g.player.y=2.5;g.player.inv=1;
+ // shelves / racks, leave clear lanes
+ for(let y=2;y<=8;y++) for(let x of [6,7,11,12]) if(!(y===5 && (x===7||x===11))) g.walls.push({x,y});
+ for(let i=0;i<g.goal;i++){let p;do{p={x:rand(3,17)+.5,y:rand(1,10)+.5}}while(blocked(p.x,p.y)||near(p.x,p.y, g.exit.x,g.exit.y,2)||near(p.x,p.y,g.player.x,g.player.y,2)||g.boxes.some(b=>near(p.x,p.y,b.x,b.y,1)));g.boxes.push({...p,taken:false});}
+ let n=Math.min(1+Math.floor(g.level/2),4);
+ for(let i=0;i<n;i++){let p;do{p={x:rand(8,18)+.5,y:rand(1,10)+.5}}while(blocked(p.x,p.y)||near(p.x,p.y,g.player.x,g.player.y,4)||g.enemies.some(e=>near(p.x,p.y,e.x,e.y,2)));g.enemies.push({...p,dx:Math.random()<.5?1:-1,dy:0,cd:rand(20,60),stun:0});}
+ $('phase').textContent=phases[Math.min(g.level-1,3)].name;
+ $('concept').textContent=phases[Math.min(g.level-1,3)].concept;
+ $('objective').textContent=`${phases[Math.min(g.level-1,3)].hint} Meta: ${g.goal} caixas.`;
+ $('message').textContent='Operação iniciada. Evite os perigos e controle o tempo!';
+}
+function blocked(x,y){let tx=Math.floor(x),ty=Math.floor(y);return tx<0||ty<0||tx>=cols||ty>=rows||game.walls.some(w=>w.x===tx&&w.y===ty)}
+function near(x,y,a,b,d){return Math.hypot(x-a,y-b)<d}
+function move(dx,dy){
+ if(!started||game.over)return;
+ const p=game.player, speed=p.speed;
+ let nx=p.x+dx*speed,ny=p.y+dy*speed;
+ if(!blocked(nx, p.y))p.x=nx;
+ if(!blocked(p.x,ny))p.y=ny;
+ p.x=Math.max(.4,Math.min(cols-.4,p.x));p.y=Math.max(.4,Math.min(rows-.4,p.y));
+}
+function action(){
+ if(!started||game.over)return;
+ let hit=false;
+ for(const e of game.enemies)if(near(game.player.x,game.player.y,e.x,e.y,1.5)){e.stun=game.player.stun;hit=true;game.score+=5}
+ $('message').textContent=hit?'Perigo atordoado! +5 pontos.':'Golpe no ar — aproxime-se de uma empilhadeira para atordoá-la.';
+}
+function hurt(){
+ const p=game.player;if(p.inv>0)return;
+ game.hp--;p.inv=1.3; $('message').textContent='Colisão! Integridade reduzida. Desvie dos perigos.';
+ if(game.hp<=0)end(false);
+}
+function dash(){
+ if(!started||game.over||game.player.dashCd>0)return;
+ const p=game.player;let dx=0,dy=0;
+ if(keys.ArrowLeft||keys.a)dx--;if(keys.ArrowRight||keys.d)dx++;
+ if(keys.ArrowUp||keys.w)dy--;if(keys.ArrowDown||keys.s)dy++;
+ if(!dx&&!dy)dx=1;
+ const len=Math.hypot(dx,dy);dx/=len;dy/=len;
+ for(let i=0;i<5;i++){let nx=p.x+dx*.32,ny=p.y+dy*.32;if(!blocked(nx,p.y))p.x=nx;if(!blocked(p.x,ny))p.y=ny;}
+ p.inv=.65;p.dashCd=2.5;$('message').textContent='Esquiva executada! Use-a para escapar de colisões.';
+}
+function chooseUpgrade(){
+ const overlay=$('overlay'),modal=overlay.querySelector('.modal');overlay.style.display='flex';
+ const options=[
+  {name:'🛼 Rodas reforçadas',desc:'Movimento 15% mais rápido.',apply:()=>game.player.speed=Math.min(.29,game.player.speed*1.15)},
+  {name:'🛡️ EPI reforçado',desc:'Recupera 1 ponto de integridade (até 4).',apply:()=>{game.maxHp=4;game.hp=Math.min(game.maxHp,game.hp+1)}},
+  {name:'📡 Leitor de código',desc:'Ação atordoa perigos por mais tempo e vale +5 pontos ao coletar.',apply:()=>{game.player.stun+=35;game.bonus=5}},
+  {name:'🏷️ Etiquetas RFID',desc:'Cada caixa coletada vale +5 pontos extras.',apply:()=>game.bonus=(game.bonus||0)+5},
+  {name:'⏱️ Esteira otimizada',desc:'Ganha 12 segundos extras em cada nova operação.',apply:()=>game.timeBonus=(game.timeBonus||0)+12}
+ ];
+ // Offer three different upgrades each time.
+ const picks=[];while(picks.length<3){const o=options[rand(0,options.length-1)];if(!picks.includes(o))picks.push(o)}
+ modal.innerHTML=`<h2>🔧 Melhoria entre operações</h2><p>Pedido concluído! Escolha um recurso para melhorar o armazém antes da próxima fase.</p><div style="display:grid;gap:9px">${picks.map((o,i)=>`<button data-upgrade="${i}" style="text-align:left;padding:12px"><b>${o.name}</b><br><span style="font-size:12px;color:#d1dbe7">${o.desc}</span></button>`).join('')}</div><p style="font-size:12px">Cada melhoria representa um recurso que pode aumentar a eficiência logística.</p>`;
+ modal.querySelectorAll('[data-upgrade]').forEach(btn=>btn.onclick=()=>{picks[Number(btn.dataset.upgrade)].apply();overlay.style.display='none';makeLevel();updateHUD();$('message').textContent='Melhoria instalada! Prepare-se para a próxima operação.'});
+}
+function update(dt){
+ if(!started||game.over)return;
+ const g=game,p=g.player;
+ g.time-=dt;if(g.time<=0){g.time=0;end(false);return}
+ p.inv=Math.max(0,p.inv-dt);p.cd=Math.max(0,p.cd-dt);p.dashCd=Math.max(0,(p.dashCd||0)-dt);$('dash').textContent=p.dashCd>0?'💨 '+p.dashCd.toFixed(1)+'s':'💨 Esquiva';
+ // keyboard movement
+ let dx=0,dy=0;
+ if(keys.ArrowLeft||keys.a)dx--;if(keys.ArrowRight||keys.d)dx++;
+ if(keys.ArrowUp||keys.w)dy--;if(keys.ArrowDown||keys.s)dy++;
+ if(dx||dy){let l=Math.hypot(dx,dy);move(dx/l,dy/l)}
+ // collect boxes
+ for(let i=g.boxes.length-1;i>=0;i--){const b=g.boxes[i];if(near(p.x,p.y,b.x,b.y,.75)){g.boxes.splice(i,1);g.carried++;g.score+=10+(g.bonus||0);$('message').textContent='Caixa registrada! +' +(10+(g.bonus||0))+' pontos. Leve os itens à expedição.'}}
+ // enemies roam in lanes
+ for(const e of g.enemies){
+   if(e.stun>0){e.stun-=dt*60;continue}
+   e.cd-=dt*60;
+   if(e.cd<=0){if(Math.random()<.6){e.dx=rand(-1,1);e.dy=e.dx===0?(Math.random()<.5?1:-1):0}e.cd=rand(25,70)}
+   let nx=e.x+e.dx*.055,ny=e.y+e.dy*.055;
+   if(blocked(nx,ny)){e.dx=-e.dx;e.dy=-e.dy;e.cd=20}else{e.x=nx;e.y=ny}
+   if(near(p.x,p.y,e.x,e.y,.65))hurt();
+ }
+ if(g.carried>=g.goal && near(p.x,p.y,g.exit.x,g.exit.y,1.1)){g.score+=g.carried*15;g.level++;if(g.level>4){end(true);return}chooseUpgrade();}
+ updateHUD();
+}
+function updateHUD(){
+ $('level').textContent=game.level;$('hp').textContent='❤️'.repeat(Math.max(0,game.hp))||'0';
+ $('score').textContent=game.score;$('stock').textContent=`${game.carried}/${game.goal}`;$('timer').textContent=Math.ceil(game.time)+'s';
+}
+function rect(x,y,w,h,c){ctx.fillStyle=c;ctx.fillRect(Math.round(x),Math.round(y),Math.round(w),Math.round(h))}
+function drawSprite(x,y,body,accent,type='box'){
+ const px=Math.round(x*tile),py=Math.round(y*tile);
+ if(type==='player'){
+  rect(px-8,py-9,16,17,body);rect(px-6,py-14,12,7,'#f1c27d');rect(px-6,py-3,4,3,'#17202b');rect(px+2,py-3,4,3,'#17202b');rect(px-9,py+7,6,5,'#34495e');rect(px+3,py+7,6,5,'#34495e');rect(px-8,py-16,16,3,accent);
+ }else if(type==='enemy'){
+  rect(px-12,py-7,24,15,'#e6a23c');rect(px-8,py-13,16,7,'#ffcf70');rect(px-8,py+8,5,5,'#374151');rect(px+3,py+8,5,5,'#374151');rect(px-4,py-4,3,3,'#222');rect(px+3,py-4,3,3,'#222');rect(px-2,py-1,4,2,'#d94841');
+ }else{
+  rect(px-10,py-9,20,18,'#c78b48');rect(px-7,py-6,14,12,'#e7b66d');rect(px-1,py-6,2,12,'#8b5e34');rect(px-7,py-1,14,2,'#8b5e34');
+ }
+}
+function draw(){
+ const g=game;ctx.clearRect(0,0,canvas.width,canvas.height);
+ rect(0,0,640,400,'#1b2937');
+ // floor tile pattern
+ for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){rect(x*tile,y*tile,31,31,((x+y)%2?'#263747':'#293b4b'))}
+ // outer borders
+ for(let x=0;x<cols;x++){rect(x*tile,0,32,9,'#60758a');rect(x*tile,rows*tile-9,32,9,'#60758a')}
+ for(let y=0;y<rows;y++){rect(0,y*tile,9,32,'#60758a');rect(cols*tile-9,y*tile,9,32,'#60758a')}
+ // warehouse lanes / shelf racks
+ for(const w of g.walls){rect(w.x*tile,w.y*tile,31,31,'#536578');rect(w.x*tile+3,w.y*tile+4,25,6,'#8ca0b2');rect(w.x*tile+3,w.y*tile+17,25,7,'#34495e');rect(w.x*tile+5,w.y*tile+7,5,10,'#a87545');rect(w.x*tile+14,w.y*tile+7,6,10,'#bb8247')}
+ // exit
+ const ex=g.exit.x*tile,ey=g.exit.y*tile;rect(ex-17,ey-17,34,34,'#26734d');rect(ex-12,ey-12,24,24,'#5dd48a');rect(ex-4,ey-11,8,22,'#17613e');rect(ex-10,ey-3,20,6,'#17613e');
+ ctx.fillStyle='#d9ffe5';ctx.font='bold 10px monospace';ctx.fillText('EXPEDIÇÃO',ex-30,ey+27);
+ for(const b of g.boxes)drawSprite(b.x,b.y,'#c78b48','#f5d08a');
+ for(const e of g.enemies){if(e.stun>0){rect(e.x*tile-12,e.y*tile-17,24,3,'#ffe66d')}drawSprite(e.x,e.y,'#e6a23c','#ffcf70','enemy');}
+ if(!(g.player.inv>0 && Math.floor(frame/5)%2===0))drawSprite(g.player.x,g.player.y,'#57a6ff','#c4e3ff','player');
+ ctx.fillStyle='#e8f0fa';ctx.font='bold 12px monospace';ctx.fillText('CAIXAS: '+g.carried+'/'+g.goal,16,22);
+}
+function end(win){
+ game.over=true;const overlay=$('overlay'),modal=overlay.querySelector('.modal');
+ overlay.style.display='flex';
+ modal.innerHTML=win?`<h2>🏆 Armazém organizado!</h2><p>Você concluiu as quatro operações e controlou o caos do estoque.</p><p><b>Pontuação final:</b> ${game.score}</p><p>Conceitos praticados: recebimento, armazenagem, expedição e inventário.</p><button id="again" class="primary" style="width:100%">Jogar novamente</button>`:`<h2>⏱️ Operação encerrada</h2><p>O armazém ficou fora de controle. Cada erro de conferência, atraso ou colisão pode afetar a operação.</p><p><b>Pontuação:</b> ${game.score} · <b>Fase:</b> ${game.level}</p><p>Dica de gestão: organização e rastreabilidade ajudam a reduzir erros e atrasos.</p><button id="again" class="primary" style="width:100%">Tentar novamente</button>`;
+ $('again').onclick=()=>{overlay.style.display='none';started=true;reset()};
+}
+function loop(t){let dt=Math.min((t-last)/1000||0,.04);last=t;frame++;update(dt);draw();requestAnimationFrame(loop)}
+document.querySelectorAll('[data-move]').forEach(btn=>{
+ const dir=btn.dataset.move;const vec={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[dir];
+ const start=ev=>{ev.preventDefault();keys[{up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'}[dir]]=true;move(...vec)};
+ const stop=ev=>{ev.preventDefault();keys[{up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight'}[dir]]=false};
+ btn.addEventListener('pointerdown',start);btn.addEventListener('pointerup',stop);btn.addEventListener('pointerleave',stop);btn.addEventListener('pointercancel',stop);
+});
+$('attack').addEventListener('click',action);$('dash').addEventListener('click',dash);
+$('restart').addEventListener('click',()=>{started=true;$('overlay').style.display='none';reset()});
+$('start').addEventListener('click',()=>{started=true;$('overlay').style.display='none';reset()});
+window.addEventListener('keydown',e=>{if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault();keys[e.key]=true;if(e.key===' '||e.key==='Enter')action()});
+window.addEventListener('keyup',e=>keys[e.key]=false);
+reset();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
